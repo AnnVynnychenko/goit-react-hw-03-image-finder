@@ -1,0 +1,9 @@
+.gallery {
+  max-width: 1400px;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 30px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+}
