@@ -16,40 +16,41 @@ export class App extends Component {
     galleryItems: [],
     page: 1,
     loadMore: false,
-    status: 'idle',
+    status: null,
+  };
+
+  fetchImages = async () => {
+    const { page, searchQuery } = this.state;
+    const response = await fetch(
+      `${BASE_URL}?key=${API_KEY}&q=${searchQuery}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=${perPage}`
+    );
+    const parseResponse = await response.json();
+    return parseResponse;
   };
 
   async componentDidUpdate(prevProps, prevState) {
     const { page, searchQuery } = this.state;
-    if (prevState.searchQuery !== searchQuery) {
-      this.resetPage();
-    }
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
+    const differentSearchQuery = prevState.searchQuery !== searchQuery;
+    const differentPage = prevState.page !== page;
+    if (differentSearchQuery || differentPage) {
       this.setState({ status: 'pending' });
       try {
-        const response = await fetch(
-          `${BASE_URL}?key=${API_KEY}&q=${searchQuery}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=${perPage}`
-        );
-        const parseResponse = await response.json();
-        this.setState(
-          {
-            galleryItems: parseResponse.hits,
-            status: 'resolved',
-            loadMore: page < Math.ceil(parseResponse.totalHits / 12),
-          },
-          () => {
-            console.log('New status:', this.state.galleryItems); // Log the updated status
-          }
-        );
+        const fetchResult = await this.fetchImages();
+        this.setState({
+          galleryItems: [...prevState.galleryItems, ...fetchResult.hits],
+          status: null,
+          loadMore: page < Math.ceil(fetchResult.totalHits / 12),
+        });
+        if (fetchResult.hits.length === 0) {
+          return toast.error(
+            `Sorry, there are no images matching search query ${searchQuery}. Please try again.`
+          );
+        }
       } catch (error) {
-        this.setState({ status: 'rejected' });
+        toast.error('Oops, something went wrong! Please, try again!');
       }
     }
   }
-
-  resetPage = () => {
-    this.setState({ page: 1 });
-  };
 
   incrementPage = () => {
     this.setState(prevState => ({
@@ -58,52 +59,32 @@ export class App extends Component {
   };
 
   handleFormSubmit = searchQuery => {
-    this.setState({ searchQuery });
+    this.setState({ searchQuery, galleryItems: [], page: 1 });
   };
 
   render() {
-    const { loadMore, status, galleryItems, searchQuery } = this.state;
-    if (status === 'idle' || status === 'resolved') {
-      return (
-        <>
-          <Searchbar onSubmit={this.handleFormSubmit} />
-          <ToastContainer
-            position="top-center"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="colored"
-          />
-        </>
-      );
-    }
-    if (status === 'pending') {
-      return <Loader />;
-    }
-
-    if (status === 'rejected') {
-      return toast.error('Oops, something went wrong! Please, try again!');
-    }
-
-    if (status === 'resolved') {
-      if (galleryItems.length === 0) {
-        return toast.error(
-          `Sorry, there are no images matching search query ${searchQuery}. Please try again.`
-        );
-      }
-      if (galleryItems.length > 0) {
-        return (
-          <>
-            <ImageGallery galleryItems={galleryItems} />
-            {loadMore && <LoadMoreBtn onClick={this.incrementPage} />}
-          </>
-        );
-      }
-    }
+    const { loadMore, status, galleryItems } = this.state;
+    return (
+      <>
+        <Searchbar onSubmit={this.handleFormSubmit} />
+        <ToastContainer
+          position="top-center"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+        {status === 'pending' && <Loader />}
+        {galleryItems.length > 0 && (
+          <ImageGallery galleryItems={galleryItems} />
+        )}
+        {loadMore && <LoadMoreBtn onClick={this.incrementPage} />}
+      </>
+    );
   }
 }
