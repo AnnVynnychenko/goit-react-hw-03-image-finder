@@ -36,11 +36,11 @@ export class App extends Component {
       this.setState({ status: 'pending' });
       try {
         const fetchResult = await this.fetchImages();
-        this.setState({
+        this.setState(prevState => ({
           galleryItems: [...prevState.galleryItems, ...fetchResult.hits],
           status: null,
           loadMore: page < Math.ceil(fetchResult.totalHits / 12),
-        });
+        }));
         if (fetchResult.hits.length === 0) {
           return toast.error(
             `Sorry, there are no images matching search query ${searchQuery}. Please try again.`
